@@ -1,0 +1,1091 @@
+<html>
+<head>
+  <title>Hover graph</title>
+  <style>
+    html, body {
+      border: 0;
+      font: 10pt sans-serif;
+      margin: 0;
+      outline: 0;
+      padding: 0;
+    }
+
+    .cvs-arr {
+      left: 0;
+      position: absolute;
+      top: 0;
+    }
+
+    .smstr {
+      display: inline-block;
+      padding: 50px 50px 0 50px;
+      vertical-align: top;
+    }
+
+    .smstr-ttl {
+      font-size: 12pt;
+      font-weight: bold;
+      text-align: center;
+      width: 200px;
+    }
+
+    .lctr {
+      border-collapse: collapse;
+      margin-top: 25px;
+      position: relative;
+      text-align: center;
+      width: 200px;
+      z-index: 2;
+    }
+
+      .lctr[data-active="false"] {
+        opacity: 0.25;
+        z-index: 1;
+      }
+
+      .lctr[data-active="true"] {
+        opacity: 1;
+        z-index: 3;
+      }
+
+      .lctr td {
+        width: 200px;
+      }
+
+    .lctr-req td {
+      border: 1px solid black;
+      padding: 5px;
+    }
+
+    .lctr-opt td {
+      border: 1px dashed black;
+      padding: 5px;
+    }
+
+    .lctr-dis td {
+      border: 1px dotted black;
+      padding: 5px;
+    }
+
+    .lctr-dis .lctr-ttl::after {
+      color: red;
+      content: " (desabilitada)";
+    }
+
+    .lctr-ttl {
+      font-weight: bold;
+      line-height: 15px;
+    }
+
+    .lctr-nam {
+      background-color: white;
+    }
+
+    .lctr-trl {
+      font-weight: bold;
+      line-height: 15px;
+    }
+
+    .lctr-trl-spro {
+      background-color: #fff9c4;
+    }
+
+    .lctr-trl-sro {
+      background-color: #d1c4e9;
+    }
+
+    .lctr-trl-ds {
+      background-color: #b2ebf2;
+    }
+
+    .lctr-trl-ai {
+      background-color: #b2ebf2;
+    }
+
+    .lctr-trl-ss {
+      background-color: #b2ebf2;
+    }
+
+    .lctr-trl-ct {
+      background-color: #b2ebf2;
+    }
+
+    #inputText {
+      display: none;
+    }
+
+    #cvs-lyr1 {
+      opacity: 0.25;
+      z-index: 0;
+    }
+
+    #cvs-lyr2 {
+      opacity: 0;
+      z-index: 1;
+    }
+
+      #cvs-lyr2[data-active="true"] {
+        opacity: 1;
+        z-index: 2;
+      }
+
+    #nosemester {
+      padding: 50px 0;
+      width: 100%;
+    }
+
+      #nosemester > table {
+        display: inline-block;
+        margin-left: 25px;
+        vertical-align: top;
+      }
+  </style>
+</head>
+<body>
+  <script>
+    //#region variables
+    var lectures = new Array();
+    var totalSemesters = 8;
+
+    var trailTypeClasses = {
+      statisticProbabilityRequiredOption: "lctr-trl-spro",
+      scienceRequiredOption: "lctr-trl-sro",
+
+      dataScience: "lctr-trl-ds",
+      artificialIntelligence: "lctr-trl-ai",
+      softwareSystems: "lctr-trl-ss",
+      computationTheory: "lctr-trl-ct"
+    }
+
+    var lectureTypesClasses = {
+      required: "lctr-req",
+      optional: "lctr-opt",
+      disabled: "lctr-dis"
+    }
+    //#endregion
+
+    //#region classes
+    function trail(trail) {
+      var trail = trail || {};
+
+      this.type = trail.type || "";
+      this.statement = trail.statement || "";
+    }
+
+    function requirement(requirement) {
+      var requirement = requirement || {};
+
+      this.lectureTitles = requirement.lectureTitles || new Array();
+    }
+
+    function lecture(lecture) {
+      var lecture = lecture || {};
+
+      this.semester = lecture.semester || 0;
+      this.title = lecture.title || "";
+      this.color = lecture.color || "";
+      this.name = lecture.name || "";
+      this.type = lecture.type || "";
+      this.trails = lecture.trails || new Array();
+
+      this.requirements = lecture.requirements || new Array();
+    }
+
+    function lectureGroup(lectureGroup) {
+      var lectureGroup = lectureGroup || {};
+
+      this.type = lectureGroup.type || {};
+      this.statement = lectureGroup.statement || "";
+      this.lectures = lectureGroup.lectureGroup || new Array();
+    }
+    //#endregion
+
+    //#region functions
+    function readInputText() {
+      var inputTextLines = document.getElementById("inputText").innerHTML.split("\n");
+
+      for (var i = 0, lectureId = 0; i < inputTextLines.length; i++) {
+        var command = inputTextLines[i].trim().split(" ")[0];
+        console.log(inputTextLines[i].trim());
+
+        if (command == "LECTURE") {
+          var params = inputTextLines[i].trim().replace("LECTURE", "").trim().split(/,(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)/);
+          var paramIndex = 0;
+
+          var lecture = new window.lecture();
+
+          lecture.semester = params[paramIndex++].trim().replace(/(^")|("$)/g, "");
+          lecture.title = params[paramIndex++].trim().replace(/(^")|("$)/g, "");
+          //lecture.color = params[paramIndex++].trim().replace(/(^")|("$)/g, "");
+          lecture.name = params[paramIndex++].trim().replace(/(^")|("$)/g, "");
+          lecture.type = params[paramIndex++].trim().replace(/(^")|("$)/g, "");
+
+          var department = lecture.title.substr(0, 3);
+          if (department == "ACH") lecture.color = "#ffcdd2";
+          else if (department == "161" || department == "AUH" || department == "AUP") lecture.color = "#dcedc8";
+          else if (department == "430") lecture.color = "#c8e6c9";
+          else if (department == "IOF") lecture.color = "#ffcdd2";
+          else if (department == "GMG" || department == "044") lecture.color = "#e1bee7";
+          else if (department == "CJE") lecture.color = "#fff9c4";
+          else if (department == "MAC" || lecture.type == "required") lecture.color = "#b2ebf2";
+          else if (department == "MAE") lecture.color = "#fff9c4";
+          else if (department == "MAP") lecture.color = "#c5cae9";
+          else if (department == "MAT") lecture.color = "#f8bbd0";
+          else if (department == "032" || department == "PCS") lecture.color = "#f0f4c3";
+          else if (department == "QBQ") lecture.color = "#d1c4e9";
+          else lecture.color = "#fff";
+
+          if (params[paramIndex++].trim() == "(") {
+            while (inputTextLines[i + 1].trim().split(" ")[0] == "TRAIL") {
+              i += 1;
+
+              var subParams = inputTextLines[i].trim().replace("TRAIL", "").trim().split(/,(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)/);
+
+              var trail = new window.trail();
+
+              trail.type = subParams[0].trim().replace(/(^")|("$)/g, "");
+              trail.statement = subParams[1].trim().replace(/(^")|("$)/g, "");
+
+              lecture.trails.push(trail);
+            }
+            i += 1;
+
+            paramIndex = 1;
+          }
+
+          params = inputTextLines[i].trim().split(/,(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)/);
+
+          if (params[paramIndex++].trim() == "(") {
+            while (inputTextLines[i + 1].trim().split(" ")[0] == "REQUIREMENT") {
+              i += 1;
+
+              var subParams = inputTextLines[i].trim().replace("REQUIREMENT", "").trim().split(/,(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)/);
+
+              var requirement = new window.requirement();
+
+              for (var param in subParams)
+                requirement.lectureTitles.push(subParams[param].trim().replace(/(^")|("$)/g, ""));
+
+              lecture.requirements.push(requirement);
+            }
+            i += 1;
+
+            paramIndex = 1;
+          }
+
+          lectures.push(lecture);
+        }
+        else if (command == "LECTUREGROUP") {
+
+        }
+      }
+    }
+
+    function generateLectures() {
+      var grid = document.getElementById("grid");
+
+      document.body.style.minWidth = (totalSemesters * 300) + "px";
+      grid.style.minWidth = (totalSemesters * 300) + "px";
+
+      var semesters = new Array(totalSemesters);
+
+      for (var i = 0; i < semesters.length; i++) {
+        var semester = document.createElement("div");
+
+        semester.className = "smstr";
+
+        var semesterTitle = document.createElement("div");
+
+        semesterTitle.className = "smstr-ttl";
+        semesterTitle.innerHTML = (i + 1) + "º semestre";
+
+        semester.appendChild(semesterTitle);
+        grid.appendChild(semester);
+      }
+
+      var noSemester = document.createElement("div");
+
+      noSemester.id = "nosemester";
+      grid.appendChild(noSemester);
+
+      for (var lectureIndex in lectures) {
+        var lecture = lectures[lectureIndex];
+
+        lectureTable = document.createElement("table");
+
+        lectureTable.className = "lctr " + lectureTypesClasses[lecture.type];
+        lectureTable.dataset.index = lectureIndex;
+        lectureTable.dataset.title = lecture.title;
+        lectureTable.addEventListener("mouseover", lectureTableMousedOver);
+        lectureTable.addEventListener("mouseout", lectureTableMousedOut);
+
+        var trTitle = document.createElement("tr");
+        var tdTitle = document.createElement("td");
+
+        tdTitle.className = "lctr-ttl";
+        tdTitle.innerHTML = lecture.title;
+        tdTitle.style.backgroundColor = lecture.color;
+
+        trTitle.appendChild(tdTitle);
+        lectureTable.appendChild(trTitle);
+
+        var trName = document.createElement("tr");
+        var tdName = document.createElement("td");
+
+        tdName.className = "lctr-nam";
+        tdName.innerHTML = lecture.name;
+
+        trName.appendChild(tdName);
+        lectureTable.appendChild(trName);
+
+        for (var trailIndex in lecture.trails) {
+          trail = lecture.trails[trailIndex];
+
+          var trTrail = document.createElement("tr");
+          var tdTrail = document.createElement("td");
+
+          tdTrail.className = "lctr-trl " + trailTypeClasses[trail.type];
+          tdTrail.innerHTML = trail.statement;
+
+          trTrail.appendChild(tdTrail);
+          lectureTable.appendChild(trTrail);
+        }
+
+        if (lecture.semester == "-")
+          document.querySelector("#nosemester").appendChild(lectureTable);
+        else
+          document.querySelector("#grid .smstr:nth-child(" + parseInt(lecture.semester) + ")").appendChild(lectureTable);
+      }
+    }
+
+    function fitCanvasSize() {
+      var canvas = document.querySelectorAll(".cvs-arr");
+
+      for (var i = 0; i < canvas.length; i++) {
+        canvas[i].width = document.body.offsetWidth;
+        canvas[i].height = document.body.offsetHeight;
+
+        canvas[i].style.width = document.body.offsetWidth + "px";
+        canvas[i].style.height = document.body.offsetHeight + "px";
+      }
+    }
+
+    function generateArrows() {
+      var canvas1 = document.getElementById("cvs-lyr1");
+      var ctx = canvas1.getContext("2d");
+
+      ctx.strokeStyle = "#000";
+      ctx.lineWidth = 1;
+
+      for (var lectureIndex in lectures) {
+        var lecture = lectures[lectureIndex];
+        var lectureTable = document.querySelector(".lctr[data-index=\"" + lectureIndex + "\"]");
+
+        for (var requirementIndex in lecture.requirements) {
+          var requirement = lecture.requirements[requirementIndex];
+
+          for (var requiredLectureIndex in requirement.lectureTitles) {
+            var requiredLecture = requirement.lectureTitles[requiredLectureIndex];
+            var requiredLectureTables = document.querySelectorAll(".lctr[data-title=\"" + requiredLecture + "\"]");
+
+            for (var requiredLectureTableIndex = 0; requiredLectureTableIndex < requiredLectureTables.length; requiredLectureTableIndex++) {
+              var requiredLecturesTable = requiredLectureTables[requiredLectureTableIndex];
+
+              ctx.beginPath();
+              drawArrow(ctx,
+                requiredLecturesTable.offsetLeft + requiredLecturesTable.offsetWidth, requiredLecturesTable.offsetTop + (requiredLecturesTable.offsetHeight / 2),
+                lectureTable.offsetLeft, lectureTable.offsetTop + ((lectureTable.offsetHeight / (lecture.requirements.length + 1)) * (parseInt(requirementIndex) + 1)));
+              ctx.stroke();
+
+              ctx.beginPath();
+            }
+
+          }
+        }
+      }
+    }
+
+    function drawArrow(ctx, fromX, fromY, toX, toY) {
+      var headSize = 10;
+      var angle = Math.atan2(toY - fromY, toX - fromX);
+
+      ctx.moveTo(fromX, fromY);
+      ctx.lineTo(toX, toY);
+      ctx.stroke();
+
+      ctx.lineTo(toX - headSize * Math.cos(angle - Math.PI / 6), toY - headSize * Math.sin(angle - Math.PI / 6));
+      ctx.lineTo(toX - headSize * Math.cos(angle + Math.PI / 6), toY - headSize * Math.sin(angle + Math.PI / 6));
+      ctx.lineTo(toX, toY);
+      ctx.fill();
+    }
+    //#endregion
+
+    //#region events
+    function lectureTableMousedOver(event) {
+      var canvas2 = document.getElementById("cvs-lyr2");
+      var ctx = canvas2.getContext("2d");
+      var lectureTables = document.querySelectorAll(".lctr");
+      var lecture = lectures[parseInt(this.dataset.index)];
+
+      ctx.clearRect(0, 0, canvas2.width, canvas2.height);
+      canvas2.dataset.active = "true";
+
+      for (var lectureTableIndex = 0; lectureTableIndex < lectureTables.length; lectureTableIndex++) {
+        var lectureTable = lectureTables[lectureTableIndex];
+
+        lectureTable.dataset.active = "false";
+      }
+
+      this.dataset.active = "true";
+
+      for (var requirementIndex in lecture.requirements) {
+        var requirement = lecture.requirements[requirementIndex];
+
+        for (var requiredLectureIndex in requirement.lectureTitles) {
+          var requiredLecture = requirement.lectureTitles[requiredLectureIndex];
+          var requiredLectureTables = document.querySelectorAll(".lctr[data-title=\"" + requiredLecture + "\"]");
+
+          for (var requiredLectureTableIndex = 0; requiredLectureTableIndex < requiredLectureTables.length; requiredLectureTableIndex++) {
+            var requiredLecturesTable = requiredLectureTables[requiredLectureTableIndex];
+
+            requiredLecturesTable.dataset.active = "true";
+
+            ctx.beginPath();
+            drawArrow(ctx,
+              requiredLecturesTable.offsetLeft + requiredLecturesTable.offsetWidth, requiredLecturesTable.offsetTop + (requiredLecturesTable.offsetHeight / 2),
+              this.offsetLeft, this.offsetTop + ((this.offsetHeight / (lecture.requirements.length + 1)) * (parseInt(requirementIndex) + 1)));
+            ctx.stroke();
+
+            ctx.beginPath();
+          }
+
+        }
+      }
+    }
+
+    function lectureTableMousedOut(event) {
+      var canvas2 = document.getElementById("cvs-lyr2");
+      var ctx = canvas2.getContext("2d");
+      var lectureTables = document.querySelectorAll(".lctr");
+
+      canvas2.dataset.active = "false";
+
+      for (var lectureTableIndex = 0; lectureTableIndex < lectureTables.length; lectureTableIndex++) {
+        var lectureTable = lectureTables[lectureTableIndex];
+
+        lectureTable.dataset.active = "";
+      }
+    }
+
+    function windowLoaded(event) {
+      readInputText();
+      generateLectures();
+      fitCanvasSize();
+      generateArrows();
+    }
+
+    window.addEventListener("load", windowLoaded);
+    //#endregion
+  </script>
+  <canvas id="cvs-lyr1" class="cvs-arr"></canvas>
+  <canvas id="cvs-lyr2" class="cvs-arr"></canvas>
+  <div id="grid"></div>
+  <pre id="inputText">    
+    LECTURE 1, MAC0101, "Integração na Universidade e na Profissão", required, "", ""    
+    LECTURE 1, MAC0105, "Fundamentos de Matemática para a Computação", required, "", ""    
+    LECTURE 1, MAC0110, "Introdução à Computação", required, "", ""    
+    LECTURE 1, MAC0329, "Álgebra Booleana e Aplicações no Projeto de Arquitetura de Computadores", required, "", ""       
+    LECTURE 1, MAT2453, "Cálculo Diferencial e Integral I", required, "", ""       
+    LECTURE 1, MAT0112, "Vetores e Geometria", required, "", ""
+          
+    LECTURE 2, MAC0121, "Algoritmos e Estruturas de Dados I", required, "", (    
+      REQUIREMENT MAC0110
+    )          
+    LECTURE 2, MAC0216, "Técnicas de Programação I", required, "", (    
+      REQUIREMENT MAC0110
+    )          
+    LECTURE 2, MAC0239, "Introdução à Lógica e Verificação de Programas", required, "", (    
+      REQUIREMENT MAC0110
+    )            
+    LECTURE 2, MAE0119, "Introdução à Probabilidade e à Estatística", required, "", ""       
+    LECTURE 2, MAT2454, "Cálculo Diferencial e Integral II", required, "", (    
+      REQUIREMENT MAT2453
+    )         
+    LECTURE 2, MAT0122, "Álgebra Linear I", required, "", (    
+      REQUIREMENT MAT0112
+    )  
+            
+    LECTURE 3, MAC0102, "Caminhos no Bacharelado em Ciência da Computação", required, "", (    
+      REQUIREMENT MAC0121
+    )      
+    LECTURE 3, MAC0209, "Modelagem e Simulação", required, "", (    
+      REQUIREMENT MAC0110
+    )        
+    LECTURE 3, MAC0210, "Laboratório de Métodos Numéricos", required, "", (    
+      REQUIREMENT MAC0110, MAT0122
+    )          
+    LECTURE 3, MAC0323, "Algoritmos e Estruturas de Dados II", required, "", (    
+      REQUIREMENT MAC0121, MAC0216
+    )            
+    LECTURE 3, MAT0236, "Funções Diferenciáveis e Séries", required, "", (    
+      REQUIREMENT MAT2454
+    )         
+    LECTURE 3, MAE0217, "Estatística Descritiva", optional, (    
+      TRAIL statisticProbabilityRequiredOption, "OEP! 1/1"
+    ), (    
+      REQUIREMENT MAE0119
+    )           
+    LECTURE 3, MAE0221, "Probabilidade I", optional, (    
+      TRAIL statisticProbabilityRequiredOption, "OEP! 1/1"            
+      TRAIL dataScience, "CD"
+      TRAIL computationTheory, "TC 1/7"
+    ), (    
+      REQUIREMENT MAE0119, MAT2454
+    )               
+    LECTURE 3, MAE0228, "Noções de Probabilidade e Processos Estocásticos", optional, (    
+      TRAIL statisticProbabilityRequiredOption, "OEP! 1/1"
+    ), (    
+      REQUIREMENT MAE0119
+    ) 
+               
+    LECTURE 3, IOF0115, "Modelagem Numérica em Oceanografia", optional, "", (    
+      REQUIREMENT MAC0110
+    )               
+    LECTURE 3, MAC0337, "Computação Musical", optional, "", (    
+      REQUIREMENT MAC0121
+    )                  
+    LECTURE 3, MAE0217, "Estatística Descritiva", optional, "", (    
+      REQUIREMENT MAE0119
+    )                      
+    LECTURE 3, MAE0228, "Noções de Probabilidade e Processos Estocásticos", optional, (    
+      TRAIL dataScience, "CD NTCD2! 1/1"
+      TRAIL computationTheory, "TC 1/7"
+    ), (    
+      REQUIREMENT MAE0119
+    )                          
+    LECTURE 3, MAT0206, "Análise Real", optional, (    
+      TRAIL computationTheory, "TC (MD 1/2)! 1/3, TC 1/7"
+    ), (    
+      REQUIREMENT MAT2454
+    )                    
+    LECTURE 3, MAT0222, "Álgebra Linear II", optional, "", (    
+      REQUIREMENT MAT0122
+    )                         
+    LECTURE 3, MAT0223, "Introdução a Teoria dos Números", optional, "", (    
+      REQUIREMENT MAC0105
+    )                              
+    LECTURE 3, MAT0223, "Anéis e Corpos", optional, (    
+      TRAIL computationTheory, "TC (MD 1/2)! 1/3, TC 1/7"
+    ), (    
+      REQUIREMENT MAC0105
+    )
+            
+    LECTURE 4, MAC0316, "Conceitos Fundamentais de Linguagens de Programação", required, "", (    
+      REQUIREMENT MAC0121
+    )            
+    LECTURE 4, MAC0338, "Análise de Algoritmos", required, "", (    
+      REQUIREMENT MAC0323
+    )               
+    LECTURE 4, MAC0422, "Sistemas Operacionais", required, "", (    
+      REQUIREMENT MAC0121
+    )     
+    LECTURE 4, 4302112, "Física II", optional, (    
+      TRAIL scienceRequiredOption, "OC! 1/1"
+    ), ""    
+    LECTURE 4, 4302401, "Mecânica Estatística", optional, (    
+      TRAIL scienceRequiredOption, "OC! 1/1"
+    ), ""    
+    LECTURE 4, GMG0630, "Elementos de Mineralogia e Petrologia", optional, (    
+      TRAIL scienceRequiredOption, "OC! 1/1"
+    ), ""    
+    LECTURE 4, 0440620, "Geologia Geral", optional, (    
+      TRAIL scienceRequiredOption, "OC! 1/1"
+    ), ""    
+    LECTURE 4, QBQ0104, "Bioquímica e Biologia Molecular", optional, (    
+      TRAIL Bioquímica e Biologia Molecular, "OC! 1/1"
+    ), ""    
+    LECTURE 4, QBQ1252, "Bioquímica Metabólica", optional, (    
+      TRAIL Bioquímica e Biologia Molecular, "OC! 1/1"
+    ), ""    
+    LECTURE 4, QBQ1354, "Biologia Molecular", optional, (    
+      TRAIL Bioquímica e Biologia Molecular, "OC! 1/1"
+    ), ""
+                  
+    LECTURE 4, MAC0218, "Técnicas de Programação 2", optional, (    
+      TRAIL artificialIntelligence, "IA (S 1/1)! 1/2"    
+      TRAIL softwareSystems, "SS"
+    ), (    
+      REQUIREMENT MAC0216
+    )                  
+    LECTURE 4, MAC0219, "Programação Concorrente e Paralela", optional, (    
+      TRAIL artificialIntelligence, "IA (S 1/1)! 1/2"    
+      TRAIL softwareSystems, "SS (SPD 1/1)! 1/3"
+    ), (    
+      REQUIREMENT MAC0121, MAC0216
+    )                      
+    LECTURE 4, MAC0242, "Laboratório de Programação II", optional, "", (    
+      REQUIREMENT MAC0121
+    )                           
+    LECTURE 4, MAC0300, "Métodos Numéricos da Álgebra Linear", optional, (    
+      TRAIL computationTheory, "TC 1/7"
+    ), (    
+      REQUIREMENT MAT0122
+    )                                
+    LECTURE 4, MAE0221, "Probabilidade I", optional, (         
+      TRAIL statisticProbabilityRequiredOption, "OEP! 1/1"        
+      TRAIL dataScience, "CD"
+      TRAIL computationTheory, "TC 1/7"
+    ), (    
+      REQUIREMENT MAE0119, MAT2454
+    )                                   
+    LECTURE 4, MAE0224, "Probabilidade II", optional, ( 
+      TRAIL computationTheory, "TC 1/7"
+    ), (    
+      REQUIREMENT MAT0236
+    )                                      
+    LECTURE 4, MAE0515, "Introdução à Teoria dos Jogos", optional, ( 
+      TRAIL artificialIntelligence, "IA (TAIA 1/1)! 1/1"
+    ), (    
+      REQUIREMENT MAE0119, MAT2453
+    )            
+    LECTURE 4, MAT0265, "Grupos", optional, ( 
+      TRAIL computationTheory, "TC 1/7"
+    ), (    
+      REQUIREMENT MAC0105
+    )                 
+    LECTURE 4, MAT0311, "Cálculo Diferencial e Integral V", optional, ( 
+      TRAIL computationTheory, "TC 1/7"
+    ), (    
+      REQUIREMENT MAT0122, MAT0206
+    ) 
+                  
+    LECTURE 5, MAC0350, "Introdução ao Desenvolvimento de Sistemas de Software", required, "", (    
+      REQUIREMENT MAC0316
+    ) 
+    LECTURE 5, MAC0315, "Otimização Linear", optional, (     
+      TRAIL dataScience, "CD NTCD1! 1/1"
+      TRAIL computationTheory, "TC (O 1/2)! 1/2, TC 1/7"
+    ), (    
+      REQUIREMENT MAT0122
+    )    
+    LECTURE 5, MAC0320, "Introdução à Teoria dos Grafos", optional, ( 
+      TRAIL computationTheory, "TC (MD 1/2)! 1/3, TC 1/7"
+    ), (    
+      REQUIREMENT MAC0121
+    )        
+    LECTURE 5, MAC0327, "Desafios de Programação", optional, ( 
+      TRAIL computationTheory, "TC 1/7"
+    ), (    
+      REQUIREMENT MAC0121
+    )     
+    LECTURE 5, MAC0328, "Algoritmos em Grafos", optional, ( 
+      TRAIL computationTheory, "TC (A 1/2)! 1/2, TC 1/7"
+    ), (    
+      REQUIREMENT MAC0121
+    )         
+    LECTURE 5, MAC0352, "Redes de Computadores e Sistemas Distribuídos", optional, ( 
+      TRAIL softwareSystems, "SS (SPD 1/1)! 1/3"
+    ), (    
+      REQUIREMENT MAC0323
+    )             
+    LECTURE 5, MAC0431, "Introdução à Computação Paralela e Distribuída", optional, ( 
+      TRAIL dataScience, "CD"
+    ), (    
+      REQUIREMENT MAC0121
+    )               
+    LECTURE 5, MAC0444, "Sistemas Baseados em Conhecimento", optional, ( 
+      TRAIL artificialIntelligence, "IA (IIA 1/1)! 1/2"
+    ), (    
+      REQUIREMENT MAC0239, MAC0323
+    )                   
+    LECTURE 5, MAC0469, "Construção de Software como Serviço em Computação em Nuvem", optional, ( 
+      TRAIL softwareSystems, "SS (SPD 1/1)! 1/3"
+    ), (    
+      REQUIREMENT MAC0316
+    )                       
+    LECTURE 5, MAE0311, "Inferência Estatística", optional, "", (    
+      REQUIREMENT MAE0119, MAE0221
+    )                           
+    LECTURE 5, MAE0312, "Introdução aos Processos Estocásticos", optional, ( 
+      TRAIL dataScience, "CD NTCD2! 1/1"
+    ), (    
+      REQUIREMENT MAE0224
+    )                           
+    LECTURE 5, MAE0532, "Controle Estatístico de Qualidade", optional, "", (    
+      REQUIREMENT MAE0119
+    )                               
+    LECTURE 5, MAP2210, "Aplicações de Álgebra Linear", optional, "", (    
+      REQUIREMENT MAT0112, MAT0122
+    )                                     
+    LECTURE 5, MAT0225, "Funções Analíticas", optional, (     
+      TRAIL computationTheory, "TC 1/7"
+    ), (    
+      REQUIREMENT MAT0236    
+      REQUIREMENT MAT0206, MAT0236
+    )                                          
+    LECTURE 5, MAT0364, "Teoria de Galois", optional, "", (    
+      REQUIREMENT MAT0264, MAT0265
+    ) 
+    LECTURE 6, MAC0325, "Otimização Combinatória", optional, (           
+      TRAIL dataScience, "CD NTCD1! 1/1"  
+      TRAIL computationTheory, "TC (O 1/2)! 1/2, TC 1/7"
+    ), (    
+      REQUIREMENT MAC0121, MAC0315
+    )
+    LECTURE 6, MAC0323, "Geometria Computacional", optional, (
+      TRAIL computationTheory, "TC 1/7"
+    ), (    
+      REQUIREMENT MAC0121, MAC0315
+    )    
+    LECTURE 6, MAC0332, "Engenharia de Software", optional, (    
+      TRAIL artificialIntelligence, "IA (S 1/1)! 1/2"    
+      TRAIL softwareSystems, "SS"
+    ), (    
+      REQUIREMENT MAC0350
+    )        
+    LECTURE 6, MAC0340, "Laboratório de Engenharia de Software", optional, "", (    
+      REQUIREMENT MAC0121
+    )            
+    LECTURE 6, MAC0342, "Laboratório de Programação Extrema", optional, "", (    
+      REQUIREMENT MAC0242
+    )    
+    LECTURE 6, MAC0343, "Otimização Semidefinida e Aplicações", optional, (
+      TRAIL computationTheory, "TC 1/7"
+    ), (    
+      REQUIREMENT MAC0315
+    )        
+    LECTURE 6, MAC0344, "Arquitetura de Computadores", optional, (       
+      TRAIL softwareSystems, "SS (SPD 1/1)! 1/3"
+    ), (    
+      REQUIREMENT MAC0350
+    )                
+    LECTURE 6, MAC0412, "Organização de Computadores", optional, "", (    
+      REQUIREMENT MAC0121
+    )         
+    LECTURE 6, MAC0414, "Autômatos, Computabilidade e Complexidade", optional, (        
+      TRAIL artificialIntelligence, "IA (TAIA 1/1)! 1/1" 
+      TRAIL computationTheory, "TC (A 1/2)! 1/2, TC 1/7"
+    ), (    
+      REQUIREMENT MAC0338
+    )             
+    LECTURE 6, MAC0420, "Introdução a Computação Gráfica", optional, (              
+      TRAIL dataScience, "CD (VC 1/1)! 1/2"  
+    ), (    
+      REQUIREMENT MAC0121
+    )                 
+    LECTURE 6, MAC0426, "Sistemas de Bancos de Dados", optional, (              
+      TRAIL dataScience, "CD"            
+      TRAIL softwareSystems, "SS (BD 1/1)! 1/2" 
+    ), (    
+      REQUIREMENT MAC0350
+    )                
+    LECTURE 6, MAC0441, "Programação Orientada a Objetos", optional, "", (    
+      REQUIREMENT MAC0242
+    )                    
+    LECTURE 6, MAC0448, "Programação para Redes de Computadores", optional, "", (    
+      REQUIREMENT MAC0121
+    )              
+    LECTURE 6, MAC0450, "Algoritmos de Aproximação", optional, (   
+      TRAIL computationTheory, "TC 1/7"
+    ), (    
+      REQUIREMENT MAC0315, MAC0338
+    )                        
+    LECTURE 6, MAC0470, "Desenvolvimento de Software Livre", optional, "", (    
+      REQUIREMENT MAC0121
+    )                      
+    LECTURE 6, MAC0471, "Desenvolvimento para Web", optional, (          
+      TRAIL softwareSystems, "SS (SPD 1/1)! 1/3" 
+    ), (    
+      REQUIREMENT MAC0350
+    )                   
+    LECTURE 6, MAC0473, "Otimização Inteira", optional, (   
+      TRAIL computationTheory, "TC 1/7"
+    ), (    
+      REQUIREMENT MAC0315
+    )                      
+    LECTURE 6, MAE0325, "Séries Temporais", optional, "", (    
+      REQUIREMENT MAE0311
+    )  
+    LECTURE 6, MAE0328, "Análise de Regressão", optional, "", (    
+      REQUIREMENT MAE0311, MAT0222
+    )                             
+    LECTURE 6, MAP0313, "Cálculo de Diferenças Finitas", optional, "", (    
+      REQUIREMENT MAP2210, MAT0236
+    )                                     
+    LECTURE 6, MAP2220, "Fundamentos de Análise Numérica", optional, "", (    
+      REQUIREMENT MAP2210, MAT2454
+    )                                 
+    LECTURE 6, MAT0234, "Medida e Integração", optional, (     
+      TRAIL computationTheory, "TC 1/7"
+    ), (    
+      REQUIREMENT MAT0236    
+      REQUIREMENT MAT0206, MAT0236
+    )                                          
+    LECTURE 6, MAT0350, "Introdução aos Fundamentos de Matemática", optional, "", (    
+      REQUIREMENT MAT0206, MAT0264
+    )                                          
+    LECTURE 6, PCS2308, "Laboratório Digital II", optional, "", (    
+      REQUIREMENT PCS2305
+    ) 
+                  
+    LECTURE 7, FLC0474, "Língua Portuguesa", required, "", (    
+      REQUIREMENT MAC0316
+    )                 
+    LECTURE 7, MAC0499, "Trabalho de Formatura Supervisionado", required, "", (    
+      REQUIREMENT MAC0338, MAC0422
+    ) 
+                     
+    LECTURE 7, MAC0333, "Armazenamento e Recuperação de Informação", optional, "", (    
+      REQUIREMENT MAC0323
+    )
+    LECTURE 7, MAC0336, "Criptografia para Segurança de Dados", optional, (     
+      TRAIL computationTheory, "TC 1/7"
+    ), (    
+      REQUIREMENT MAC0105
+    )    
+    LECTURE 7, MAC0413, "Tópicos Avançados de Programação Orientada a Objetos", optional, (            
+      TRAIL artificialIntelligence, "IA (S 1/1)! 1/2"               
+      TRAIL softwareSystems, "SS" 
+    ), (    
+      REQUIREMENT MAC0218, MAC0316
+    )        
+    LECTURE 7, MAC0413, "Tópicos Avançados de Programação Orientada a Objetos", optional, (            
+      TRAIL artificialIntelligence, "IA (S 1/1)! 1/2"               
+      TRAIL softwareSystems, "SS" 
+    ), (    
+      REQUIREMENT MAC0218, MAC0316
+    )            
+    LECTURE 7, MAC0427, "Otimização Não Linear", optional, (                  
+      TRAIL dataScience, "CD NTCD1! 1/1"           
+      TRAIL computationTheory, "TC 1/7"
+    ), (    
+      REQUIREMENT MAT0122
+    )                
+    LECTURE 7, MAC0432, "Processamento Digital de Imagens: Teoria e Aplicações", optional, "", (    
+      REQUIREMENT MAC0121
+    )                
+    LECTURE 7, MAC0436, "Tópicos de Matemática Discreta", optional, (               
+      TRAIL computationTheory, "TC 1/7"
+    ), (    
+      REQUIREMENT MAC0121
+    )                     
+    LECTURE 7, MAC0438, "Programação Concorrente", optional, "", (    
+      REQUIREMENT MAC0121
+    )            
+    LECTURE 7, MAC0439, "Laboratório de Bancos de Dados", optional, (            
+      TRAIL artificialIntelligence, "IA (S 1/1)! 1/2"               
+      TRAIL softwareSystems, "SS (BD 1/1)! 1/2" 
+    ), (    
+      REQUIREMENT MAC0350
+    )                
+    LECTURE 7, MAC0451, "Tópicos Especiais em Desenvolvimento para Web", optional, "", (    
+      REQUIREMENT MAC0316, MAC0426
+    )                   
+    LECTURE 7, MAC0452, "Tópicos de Otimização Combinatória", optional, (               
+      TRAIL computationTheory, "TC 1/7"
+    ), (    
+      REQUIREMENT MAC0328, MAC0338
+    )                      
+    LECTURE 7, MAC0456, "Tópicos Especiais em Engenharia de Software", optional, "", (    
+      REQUIREMENT MAC0332
+    )               
+    LECTURE 7, MAC0459, "Ciência e Engenharia de Dados", optional, (            
+      TRAIL artificialIntelligence, "IA (II 1/1)! 1/2"               
+      TRAIL softwareSystems, "SS (BD 1/1)! 1/2" 
+    ), (    
+      REQUIREMENT MAC0121
+    )                         
+    LECTURE 7, MAC0466, "Teoria dos Jogos Algorítmica", optional, (               
+      TRAIL computationTheory, "TC 1/7"
+    ), (    
+      REQUIREMENT MAC0338
+    )                           
+    LECTURE 7, MAC0467, "Empreendedorismo Digital", optional, "", (    
+      REQUIREMENT MAC0110
+    )                  
+    LECTURE 7, MAC0472, "Laboratório de Métodos Ágeis", optional, (            
+      TRAIL artificialIntelligence, "IA (S 1/1)! 1/2"               
+      TRAIL softwareSystems, "SS" 
+    ), (    
+      REQUIREMENT MAC0218, MAC0441
+    )                                
+    LECTURE 7, MAE0314, "Análise Estatística", optional, "", (    
+      REQUIREMENT MAE0311, MAT0122
+    )    
+    LECTURE 7, MAE0315, "Tecnologia da Amostragem", optional, "", (    
+      REQUIREMENT MAE0119
+    )    
+    LECTURE 7, MAE0326, "Aplicações de Processos Estocásticos", optional, (               
+      TRAIL computationTheory, "TC 1/7"
+    ), (    
+      REQUIREMENT MAE0228
+    )         
+    LECTURE 7, MAP2310, "Métodos Numéricos em Equações Diferenciais I", optional, "", (    
+      REQUIREMENT MAP2220, MAT0236    
+      REQUIREMENT MAC0210, MAT0236
+    )             
+    LECTURE 7, MAT0330, "Teoria dos Conjuntos", optional, "", (    
+      REQUIREMENT MAC0105, MAT0236
+    )    
+    LECTURE 7, MAT0359, "Lógica", optional, (            
+      TRAIL artificialIntelligence, "IA (TAIA 1/1)! 1/1"
+    ), (    
+      REQUIREMENT MAC0239, MAT0264
+    )  
+                   
+    LECTURE 8, MAC0499 (continuação), "Trabalho de Formatura Supervisionado", required, "", (    
+      REQUIREMENT MAC0499
+    ) 
+                 
+    LECTURE 8, MAC0319, "Programação Funcional Contemporânea", optional, "", (    
+      REQUIREMENT MAC0242
+    )    
+    LECTURE 8, MAC0419, "Métodos de Otimização em Finanças", optional, (               
+      TRAIL computationTheory, "TC 1/7"
+    ), (    
+      REQUIREMENT MAC0121
+    )     
+    LECTURE 8, MAC0457, "Engenharia de Software Empírica", optional, "", (    
+      REQUIREMENT MAC0332
+    )    
+    LECTURE 8, MAC0460, "Aprendizagem Computacional: Modelos, Algoritmos e Aplicações", optional, (    
+      TRAIL artificialIntelligence, "IA (IIA 1/1)! 1/2"    
+      TRAIL dataScience, "CD"  
+    ), (    
+      REQUIREMENT MAC0329
+    )    
+    LECTURE 8, MAC0463, "Computação Móvel", optional, (    
+      TRAIL softwareSystems, "SS (SPD 1/1)! 1/3"
+    ), (    
+      REQUIREMENT MAC0323
+    )    
+    LECTURE 8, MAC0465, "Biologia Computacional", optional, (               
+      TRAIL computationTheory, "TC 1/7"
+    ), (    
+      REQUIREMENT MAC0121
+    )    
+    LECTURE 8, MAE0330, "Análise Multivariada de Dados", optional, "", (    
+      REQUIREMENT MAE0314
+    )    
+    LECTURE 8, MAP2321, "Técnicas em Teoria de Controle", optional, "", (    
+      REQUIREMENT MAP2310, MAT0122    
+      REQUIREMENT MAT0122, MAT0236
+    )    
+    LECTURE 8, MAP2411, "Matemática Industrial I", optional, "", (    
+      REQUIREMENT MAP2220, MAP2310, MAT0236
+    )
+
+
+    LECTURE -, ACH2007, "Engenharia de Sistemas de Informação II", optional, "", ""
+    LECTURE -, ACH2028, "Qualidade de Software", optional, "", ""
+    LECTURE -, ACH2037, "Métodos Quantitativos Aplicados à Sistemas de Informação", optional, "", ""
+    LECTURE -, ACH2038, "Laboratório de Redes de Computadores", optional, "", ""
+    LECTURE -, ACH2048, "Redes de Alto Desempenho", optional, "", ""
+    LECTURE -, ACH2066, "Tópicos Especiais em Bancos de Dados", optional, "", ""
+    LECTURE -, ACH2067, "Gestão de Processos de Negócio", optional, "", ""
+    LECTURE -, ACH2068, "Avaliação de Desempenho de Sistemas Computacionais", optional, "", ""
+    LECTURE -, ACH2076, "Segurança da Informação", optional, "", ""
+    LECTURE -, ACH2077, "Soluções Web Baseadas em Software Livre", optional, "", ""
+    LECTURE -, ACH2078, "Gestão Empresarial", optional, "", ""
+    LECTURE -, ACH2086, "Hipermídia", optional, "", ""
+    LECTURE -, ACH2087, "Construção de Compiladores", optional, "", ""
+    LECTURE -, ACH2096, "Laboratório de Sistemas Operacionais", optional, "", ""
+    LECTURE -, ACH2098, "Web Semântica", optional, "", ""
+    LECTURE -, ACH2106, "Projeto Integrado de Sistemas de Informação", optional, "", ""
+    LECTURE -, ACH2107, "Desafios de Programação I", optional, "", ""
+    LECTURE -, ACH2108, "Desafios de Programação II", optional, "", ""
+    LECTURE -, ACH2117, "Computação Gráfica", optional, "", ""
+    LECTURE -, ACH2118, "Introdução ao Processamento de Língua Natural", optional, "", ""
+    LECTURE -, ACH2127, "Governança de Tecnologia da Informação", optional, "", ""    
+    LECTURE -, ACH2137, "Tópicos em Planejamento em Inteligência Artificial", optional, "", ""
+    LECTURE -, 1610041, "Design: História e Projeto", optional, "", ""
+  
+    LECTURE -, AUH2803, "Aspectos Conceituais e Estéticos do Design de Interface", optional, "", ""
+    LECTURE -, AUP1301, "Tópicos de Design para Ambientes Digitais: Informação, Interface, Interação, Ação e Colaboração", optional, "", ""    
+    LECTURE -, AUP2409, "Teoria do Design", optional, "", ""
+ 
+    LECTURE -, 4302112, "Física II", optional, "", ""
+    LECTURE -, 4302401, "Mecânica Estatística", optional, "", ""
+
+    LECTURE -, IOF0255, "Oceanografia Por Satélites", optional, "", ""
+    LECTURE -, IOF0265, "Técnicas de Visualização e Distribuição de Dados Oceanográficos", optional, "", ""
+
+    LECTURE -, CJE0642, "Design de Interação para Editoração", optional, "", ""
+ 
+    LECTURE -, GMG0630, "Elementos de Mineralogia e Petrologia", optional, "", ""
+    LECTURE -, 0440620, "Geologia Geral", optional, "", ""
+
+    LECTURE -, MAC0213, "Atividade Curricular em Comunidade", optional, "", ""
+    LECTURE -, MAC0214, "Atividade Curricular em Cultura e Extensão", optional, "", ""
+    LECTURE -, MAC0215, "Atividade Curricular em Pesquisa", optional, "", ""
+    LECTURE -, MAC0317, "Introdução ao Processamento de Sinais Digitais", optional, (    
+      TRAIL dataScience, "CD"
+    ), ""
+    LECTURE -, MAC0318, "Introdução à Programação de Robôs Móveis", optional, "", ""
+    LECTURE -, MAC0322, "Introdução à Análise de Sistemas", optional, "", ""
+    LECTURE -, MAC0326, "Computação, Cibernética e Sistemas Cognitivos", optional, "", ""
+    LECTURE -, MAC0339, "Informação, Comunicação e a Sociedade do Conhecimento", optional, "", ""
+    LECTURE -, MAC0341, "Introdução a Bioinformática", optional, (    
+      TRAIL dataScience, "CD (B 1/1)! 1/2"
+    ), ""
+    LECTURE -, MAC0351, "Algoritmos em Bioinformática", optional, (    
+      TRAIL dataScience, "CD (B 1/1)! 1/2"
+    ), ""
+    LECTURE -, MAC0375, "Biologia de Sistemas", optional, (    
+      TRAIL dataScience, "CD (B 1/1)! 1/2"
+    ), ""
+    LECTURE -, MAC0416, "Tópicos de Sistemas Distribuídos", optional, "", ""
+    LECTURE -, MAC0417, "Visão e Processamento de Imagens", optional, (    
+      TRAIL dataScience, "CD (VC 1/1)! 1/2"
+    ), ""
+    //LECTURE -, MAC0418 (TC 1/7), "Tópicos Especiais de Programação Matemática", disabled, "", ""
+    LECTURE -, MAC0424, "O Computador na Sociedade e na Empresa", optional, "", ""
+    LECTURE -, MAC0425 (IA), "Inteligência Artificial", optional, (          
+      TRAIL artificialIntelligence, "IA (TAIA 1/1)! 1/2"
+    ), ""
+    LECTURE -, MAC0430, "Algoritmos e Complexidade de Computação", optional, "", ""
+    LECTURE -, MAC0434, "Tópicos de Sistemas de Computação", optional, "", ""
+    //LECTURE -, MAC0435, "Métodos Formais para Especificação e Construção de Programas", disabled, "", ""
+    LECTURE -, MAC0446, "Princípios de Interação Humano-computador", optional, "", ""
+    LECTURE -, MAC0447, "Análise e Reconhecimento de Formas: Teoria e Prática", optional, "", ""
+    LECTURE -, MAC0453, "Princípios de Pesquisa Operacional e Logística", optional, "", ""
+    LECTURE -, MAC0458, "Direito e Software", optional, "", ""
+    //LECTURE -, MAC0461 (TC 1/7), "Introdução ao Escalonamento e Aplicações", disabled, "", ""
+    LECTURE -, MAC0464, "Sistemas Humano-Computacionais", optional, "", ""
+    LECTURE -, MAC0468, "Tópicos em Computação Gráfica", optional, "", ""
+    LECTURE -, MAC0474, "Teste de Software Baseado em Modelo", optional, "", ""
+    //LECTURE -, MAE0320 (IA TAIA 1/1), "Simulação e Mineração de Dados", disabled, "", ""
+    LECTURE -, MAE0399, "Análise de Dados e Simulação", optional, (          
+      TRAIL artificialIntelligence, "IA (TAIA 1/1)! 1/1"
+    ), ""
+    LECTURE -, MAP0421, "Simulação", optional, "", ""
+    LECTURE -, MAT0213, "Álgebra II", optional, "", ""
+
+    LECTURE -, 0323100, "Introdução à Engenharia Elétrica", optional, "", ""
+    LECTURE -, PCS0210, "Redes de Computadores", optional, "", ""
+    LECTURE -, PCS0216, "Sistemas de Tempo Real", optional, "", ""
+    LECTURE -, PCS2305, "Laboratório Digital I", optional, "", ""
+    LECTURE -, PCS2530, "Design e Programação de Games", optional, "", ""
+    LECTURE -, PCS2590, "Criação e Administração de Empresas de Computação", optional, "", ""
+
+    LECTURE -, QBQ0102, "Bioquímica e Biologia Molecular", optional, "", ""
+    LECTURE -, QBQ0104, "Bioquímica e Biologia Molecular", optional, "", ""
+    LECTURE -, QBQ0106, "Bioquímica", optional, "", ""
+    LECTURE -, QBQ0116, "Bioquímica: Estrutura de Biomoléculas e Metabolismo", optional, "", ""
+    LECTURE -, QBQ0126, "Biologia Molecular", optional, "", ""
+    LECTURE -, QBQ0204, "Bioquímica: Estrutura de Biomoléculas e Metabolismo", optional, "", ""
+    LECTURE -, QBQ0250, "Bioquímica: Estrutura de Biomoléculas e Metabolismo", optional, "", ""
+    LECTURE -, QBQ0317, "Biologia Molecular", optional, "", ""
+    LECTURE -, QBQ1252, "Bioquímica Metabólica", optional, "", ""
+    LECTURE -, QBQ1354, "Biologia Molecular", optional, "", ""
+    LECTURE -, QBQ2453, "Biologia Molecular", optional, "", ""
+    LECTURE -, QBQ2457, "Tecnologia do Dna Recombinante", optional, "", ""
+    LECTURE -, QBQ2502, "Enzimologia", optional, "", ""
+    LECTURE -, QBQ2503, "Expressão Gênica", optional, "", ""
+    LECTURE -, QBQ2505, "Biologia Estrutural", optional, "", ""
+    LECTURE -, QBQ2507, "Biologia Molecular Computacional", optional, "", ""
+    LECTURE -, QBQ2508, "Transporte e Sinalização Celular", optional, "", ""
+    LECTURE -, QBQ2509, "Bioquímica Redox", optional, "", ""  
+</pre>
+</body>
+</html>
